@@ -18,45 +18,125 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            padding: 20px;
             color: white;
         }
         
         .container {
             text-align: center;
-            padding: 40px;
+            padding: 30px 20px;
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border-radius: 20px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            max-width: 600px;
-            width: 90%;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            font-size: clamp(24px, 6vw, 32px);
+            margin-bottom: 30px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        input:focus {
+            outline: none;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        }
+        
+        button {
+            width: 100%;
+            padding: 18px;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            color: white;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .result {
+            display: none;
+        }
+        
+        .result.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
         
         .info {
             margin-bottom: 30px;
-            font-size: 18px;
+            font-size: 16px;
             opacity: 0.9;
         }
         
         .info-item {
-            margin: 10px 0;
+            margin: 8px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
         }
         
         .mot-secret {
-            margin: 50px 0;
-            padding: 60px 40px;
+            margin: 30px 0;
+            padding: 40px 20px;
             background: rgba(255, 255, 255, 0.15);
             border-radius: 15px;
-            font-size: 48px;
+            font-size: clamp(32px, 8vw, 48px);
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 3px;
+            letter-spacing: 2px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s ease;
-        }
-        
-        .mot-secret:hover {
-            transform: scale(1.05);
+            word-wrap: break-word;
         }
         
         .mot-secret.joueur {
@@ -70,87 +150,144 @@
         }
         
         .instructions {
-            margin-top: 30px;
+            margin-top: 20px;
             padding: 20px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 10px;
             font-size: 14px;
-            line-height: 1.8;
+            line-height: 1.6;
+        }
+        
+        .btn-retour {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            margin-top: 20px;
+            padding: 12px;
+            font-size: 16px;
         }
         
         .error {
             color: #fca5a5;
-            font-size: 20px;
-            padding: 30px;
+            background: rgba(239, 68, 68, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            display: none;
         }
         
-        a {
-            color: #93c5fd;
-            text-decoration: none;
+        .error.active {
+            display: block;
         }
         
-        a:hover {
-            text-decoration: underline;
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px 15px;
+            }
+            
+            input {
+                padding: 12px;
+                font-size: 16px;
+            }
+            
+            button {
+                padding: 15px;
+                font-size: 18px;
+            }
+            
+            .mot-secret {
+                padding: 30px 15px;
+                margin: 20px 0;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container" id="app"></div>
+    <div class="container">
+        <div id="formulaire">
+            <h1>🎭 Jeu de l'Imposteur</h1>
+            
+            <div class="form-group">
+                <label for="joueurs">👥 Nombre de joueurs (min 3)</label>
+                <input type="number" id="joueurs" min="3" max="20" value="6" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="numero">🎯 Votre numéro de joueur</label>
+                <input type="number" id="numero" min="1" value="1" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="graine">🎲 Code de la partie (même pour tous)</label>
+                <input type="number" id="graine" value="" placeholder="Ex: 12345" required>
+            </div>
+            
+            <div class="error" id="error"></div>
+            
+            <button onclick="jouer()">▶️ Découvrir mon rôle</button>
+        </div>
+        
+        <div id="resultat" class="result">
+            <!-- Le résultat sera affiché ici -->
+        </div>
+    </div>
 
     <script>
-        // Liste de mots pour le jeu
         const MOTS = [
-            "Chat", "Chien", "Pomme", "Banane", "Voiture", "Avion", "Maison", "Arbre",
-            "Soleil", "Lune", "Montagne", "Océan", "Livre", "Téléphone", "Ordinateur",
-            "Pizza", "Café", "Restaurant", "Cinéma", "Musique", "Football", "Plage",
-            "Hiver", "Été", "Guitare", "Piano", "Peinture", "Photo", "Voyage", "Train"
+            "Chat", "Chien", "Pomme", "Banane", "Voiture", "Avion", 
+            "Maison", "Arbre", "Soleil", "Lune", "Montagne", "Océan", 
+            "Livre", "Téléphone", "Ordinateur", "Pizza", "Café", 
+            "Restaurant", "Cinéma", "Musique", "Football", "Plage", 
+            "Hiver", "Été", "Guitare", "Piano", "Peinture", "Photo", 
+            "Voyage", "Train", "Fleur", "Chocolat", "Fromage", "Pain",
+            "École", "Bureau", "Jardin", "Forêt", "Rivière", "Pont"
         ];
 
-        // Fonction de hash simple pour la graine
         function seededRandom(seed) {
             const x = Math.sin(seed++) * 10000;
             return x - Math.floor(x);
         }
 
-        // Récupérer les paramètres de l'URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const nbJoueurs = parseInt(urlParams.get('joueurs')) || 0;
-        const numeroJoueur = parseInt(urlParams.get('numero')) || 0;
-        const graine = parseInt(urlParams.get('graine')) || 0;
+        function afficherErreur(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('active');
+            setTimeout(() => {
+                errorDiv.classList.remove('active');
+            }, 3000);
+        }
 
-        const app = document.getElementById('app');
+        function jouer() {
+            const nbJoueurs = parseInt(document.getElementById('joueurs').value);
+            const numeroJoueur = parseInt(document.getElementById('numero').value);
+            const graine = parseInt(document.getElementById('graine').value);
 
-        // Vérification des paramètres
-        if (!nbJoueurs || !numeroJoueur || !graine) {
-            app.innerHTML = `
-                <div class="error">
-                    <h2>⚠️ Paramètres manquants</h2>
-                    <p style="margin-top: 20px;">Utilisez l'URL avec les paramètres suivants :</p>
-                    <p style="margin-top: 10px; font-family: monospace; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 5px;">
-                        ?joueurs=6&numero=1&graine=12345
-                    </p>
-                    <p style="margin-top: 20px; font-size: 16px;">
-                        <strong>joueurs</strong> : nombre total de joueurs (min 3)<br>
-                        <strong>numero</strong> : votre numéro de joueur<br>
-                        <strong>graine</strong> : code de la partie (même pour tous)
-                    </p>
-                </div>
-            `;
-        } else if (nbJoueurs < 3) {
-            app.innerHTML = `<div class="error">Il faut au moins 3 joueurs !</div>`;
-        } else if (numeroJoueur < 1 || numeroJoueur > nbJoueurs) {
-            app.innerHTML = `<div class="error">Le numéro de joueur doit être entre 1 et ${nbJoueurs} !</div>`;
-        } else {
-            // Déterminer l'imposteur avec la graine
+            // Validation
+            if (!nbJoueurs || !numeroJoueur || !graine) {
+                afficherErreur('⚠️ Veuillez remplir tous les champs !');
+                return;
+            }
+
+            if (nbJoueurs < 3) {
+                afficherErreur('⚠️ Il faut au moins 3 joueurs !');
+                return;
+            }
+
+            if (numeroJoueur < 1 || numeroJoueur > nbJoueurs) {
+                afficherErreur(`⚠️ Votre numéro doit être entre 1 et ${nbJoueurs} !`);
+                return;
+            }
+
+            // Calcul de l'imposteur et du mot
             const indexImposteur = Math.floor(seededRandom(graine) * nbJoueurs) + 1;
-            
-            // Choisir un mot avec la graine
             const indexMot = Math.floor(seededRandom(graine + 1000) * MOTS.length);
             const motSecret = MOTS[indexMot];
-            
             const estImposteur = numeroJoueur === indexImposteur;
+
+            // Affichage du résultat
+            document.getElementById('formulaire').style.display = 'none';
+            const resultatDiv = document.getElementById('resultat');
+            resultatDiv.classList.add('active');
             
-            app.innerHTML = `
+            resultatDiv.innerHTML = `
                 <div class="info">
                     <div class="info-item">🎮 Partie #${graine}</div>
                     <div class="info-item">👥 ${nbJoueurs} joueurs</div>
@@ -158,21 +295,36 @@
                 </div>
                 
                 <div class="mot-secret ${estImposteur ? 'imposteur' : 'joueur'}">
-                    ${estImposteur ? '❌ L\'IMPOSTEUR' : motSecret}
+                    ${estImposteur ? '❌ IMPOSTEUR' : motSecret}
                 </div>
                 
                 <div class="instructions">
                     ${estImposteur 
-                        ? '<strong>🕵️ Votre mission :</strong> Devinez le mot secret sans vous faire démasquer !'
-                        : '<strong>🔍 Votre mission :</strong> Trouvez qui est l\'imposteur en discutant du mot secret !'
+                        ? '<strong>🕵️ Votre mission :</strong><br>Devinez le mot secret sans vous faire démasquer ! Écoutez bien les autres joueurs.'
+                        : '<strong>🔍 Votre mission :</strong><br>Trouvez qui est l\'imposteur en discutant du mot secret ! Soyez subtil dans vos questions.'
                     }
-                    <p style="margin-top: 15px; opacity: 0.8;">
-                        Chaque joueur doit ouvrir cette page avec son propre numéro.<br>
-                        Gardez votre écran secret !
+                    <p style="margin-top: 15px; opacity: 0.8; font-size: 13px;">
+                        ⚠️ Gardez votre écran secret !
                     </p>
                 </div>
+                
+                <button class="btn-retour" onclick="retour()">↩️ Retour</button>
             `;
         }
+
+        function retour() {
+            document.getElementById('formulaire').style.display = 'block';
+            document.getElementById('resultat').classList.remove('active');
+        }
+
+        // Générer une graine aléatoire au chargement si vide
+        window.onload = function() {
+            const graineInput = document.getElementById('graine');
+            if (!graineInput.value) {
+                graineInput.value = Math.floor(Math.random() * 99999) + 10000;
+            }
+        };
     </script>
 </body>
 </html>
+
