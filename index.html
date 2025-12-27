@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu de l'Imposteur</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        .container {
+            text-align: center;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+        }
+        
+        .info {
+            margin-bottom: 30px;
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        
+        .info-item {
+            margin: 10px 0;
+        }
+        
+        .mot-secret {
+            margin: 50px 0;
+            padding: 60px 40px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            font-size: 48px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .mot-secret:hover {
+            transform: scale(1.05);
+        }
+        
+        .mot-secret.joueur {
+            color: #4ade80;
+            text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
+        }
+        
+        .mot-secret.imposteur {
+            color: #ef4444;
+            text-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+        }
+        
+        .instructions {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        
+        .error {
+            color: #fca5a5;
+            font-size: 20px;
+            padding: 30px;
+        }
+        
+        a {
+            color: #93c5fd;
+            text-decoration: none;
+        }
+        
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app"></div>
+
+    <script>
+        // Liste de mots pour le jeu
+        const MOTS = [
+            "Chat", "Chien", "Pomme", "Banane", "Voiture", "Avion", "Maison", "Arbre",
+            "Soleil", "Lune", "Montagne", "Océan", "Livre", "Téléphone", "Ordinateur",
+            "Pizza", "Café", "Restaurant", "Cinéma", "Musique", "Football", "Plage",
+            "Hiver", "Été", "Guitare", "Piano", "Peinture", "Photo", "Voyage", "Train"
+        ];
+
+        // Fonction de hash simple pour la graine
+        function seededRandom(seed) {
+            const x = Math.sin(seed++) * 10000;
+            return x - Math.floor(x);
+        }
+
+        // Récupérer les paramètres de l'URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const nbJoueurs = parseInt(urlParams.get('joueurs')) || 0;
+        const numeroJoueur = parseInt(urlParams.get('numero')) || 0;
+        const graine = parseInt(urlParams.get('graine')) || 0;
+
+        const app = document.getElementById('app');
+
+        // Vérification des paramètres
+        if (!nbJoueurs || !numeroJoueur || !graine) {
+            app.innerHTML = `
+                <div class="error">
+                    <h2>⚠️ Paramètres manquants</h2>
+                    <p style="margin-top: 20px;">Utilisez l'URL avec les paramètres suivants :</p>
+                    <p style="margin-top: 10px; font-family: monospace; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 5px;">
+                        ?joueurs=6&numero=1&graine=12345
+                    </p>
+                    <p style="margin-top: 20px; font-size: 16px;">
+                        <strong>joueurs</strong> : nombre total de joueurs (min 3)<br>
+                        <strong>numero</strong> : votre numéro de joueur<br>
+                        <strong>graine</strong> : code de la partie (même pour tous)
+                    </p>
+                </div>
+            `;
+        } else if (nbJoueurs < 3) {
+            app.innerHTML = `<div class="error">Il faut au moins 3 joueurs !</div>`;
+        } else if (numeroJoueur < 1 || numeroJoueur > nbJoueurs) {
+            app.innerHTML = `<div class="error">Le numéro de joueur doit être entre 1 et ${nbJoueurs} !</div>`;
+        } else {
+            // Déterminer l'imposteur avec la graine
+            const indexImposteur = Math.floor(seededRandom(graine) * nbJoueurs) + 1;
+            
+            // Choisir un mot avec la graine
+            const indexMot = Math.floor(seededRandom(graine + 1000) * MOTS.length);
+            const motSecret = MOTS[indexMot];
+            
+            const estImposteur = numeroJoueur === indexImposteur;
+            
+            app.innerHTML = `
+                <div class="info">
+                    <div class="info-item">🎮 Partie #${graine}</div>
+                    <div class="info-item">👥 ${nbJoueurs} joueurs</div>
+                    <div class="info-item">🎯 Vous êtes le joueur ${numeroJoueur}</div>
+                </div>
+                
+                <div class="mot-secret ${estImposteur ? 'imposteur' : 'joueur'}">
+                    ${estImposteur ? '❌ L\'IMPOSTEUR' : motSecret}
+                </div>
+                
+                <div class="instructions">
+                    ${estImposteur 
+                        ? '<strong>🕵️ Votre mission :</strong> Devinez le mot secret sans vous faire démasquer !'
+                        : '<strong>🔍 Votre mission :</strong> Trouvez qui est l\'imposteur en discutant du mot secret !'
+                    }
+                    <p style="margin-top: 15px; opacity: 0.8;">
+                        Chaque joueur doit ouvrir cette page avec son propre numéro.<br>
+                        Gardez votre écran secret !
+                    </p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
