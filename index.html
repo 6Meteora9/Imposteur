@@ -51,7 +51,7 @@
             font-weight: 500;
         }
         
-        input {
+        input, select {
             width: 100%;
             padding: 15px;
             font-size: 18px;
@@ -63,7 +63,11 @@
             font-weight: bold;
         }
         
-        input:focus {
+        select {
+            cursor: pointer;
+        }
+        
+        input:focus, select:focus {
             outline: none;
             background: white;
             box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
@@ -211,13 +215,17 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .theme-icon {
+            margin-right: 8px;
+        }
         
         @media (max-width: 480px) {
             .container {
                 padding: 20px 15px;
             }
             
-            input {
+            input, select {
                 padding: 12px;
                 font-size: 16px;
             }
@@ -240,6 +248,23 @@
             <h1>🎭 Jeu de l'Imposteur</h1>
 
             <div class="form-group">
+                <label for="theme">🎨 Choisissez un thème</label>
+                <select id="theme" onchange="chargerTheme()">
+                    <option value="">-- Sélectionner un thème --</option>
+                    <option value="animaux">🐾 Animaux</option>
+                    <option value="nourriture">🍕 Nourriture</option>
+                    <option value="objets">🔧 Objets du quotidien</option>
+                    <option value="lieux">🏛️ Lieux</option>
+                    <option value="metiers">💼 Métiers</option>
+                    <option value="sports">⚽ Sports et loisirs</option>
+                    <option value="nature">🌳 Nature</option>
+                    <option value="vetements">👔 Vêtements</option>
+                    <option value="corps">👤 Corps humain</option>
+                    <option value="general">🌟 Mélange général</option>
+                </select>
+            </div>
+
+            <div class="form-group">
                 <label for="joueurs">👥 Nombre de joueurs (min 3)</label>
                 <input type="number" id="joueurs" min="3" max="20" value="6" required>
             </div>
@@ -257,7 +282,7 @@
             <div class="error" id="error"></div>
             <div class="loading" id="loading">
                 <div class="spinner"></div>
-                Chargement des mots depuis internet...
+                Chargement des mots...
             </div>
             
             <button onclick="jouer()" id="btnJouer">▶️ Découvrir mon rôle</button>
@@ -269,142 +294,65 @@
     </div>
 
     <script>
-        // Cache pour stocker les mots récupérés
+        // Cache pour stocker les mots du thème chargé
         let motsCache = [];
-        let chargementEnCours = false;
+        let themeActuel = '';
 
-        // Liste robuste de noms communs connus par tous
-        const NOMS_COMMUNS = [
-            // Animaux
-            "Chien", "Chat", "Éléphant", "Lion", "Tigre", "Ours", "Lapin", "Cheval", 
-            "Vache", "Poule", "Cochon", "Mouton", "Poisson", "Oiseau", "Serpent",
-            "Singe", "Girafe", "Zèbre", "Requin", "Dauphin", "Baleine", "Tortue",
-            
-            // Nourriture
-            "Pizza", "Pain", "Fromage", "Chocolat", "Gâteau", "Pomme", "Banane",
-            "Orange", "Fraise", "Tomate", "Carotte", "Salade", "Riz", "Pâtes",
-            "Soupe", "Sandwich", "Burger", "Frites", "Glace", "Bonbon",
-            
-            // Objets quotidiens
-            "Téléphone", "Ordinateur", "Télévision", "Voiture", "Vélo", "Moto",
-            "Avion", "Bateau", "Train", "Bus", "Livre", "Stylo", "Crayon",
-            "Table", "Chaise", "Lit", "Canapé", "Porte", "Fenêtre", "Miroir",
-            "Lampe", "Horloge", "Clé", "Sac", "Valise", "Parapluie",
-            
-            // Lieux
-            "Maison", "École", "Hôpital", "Restaurant", "Cinéma", "Musée",
-            "Plage", "Montagne", "Forêt", "Jardin", "Parc", "Ville", "Village",
-            "Magasin", "Supermarché", "Boulangerie", "Pharmacie", "Banque",
-            
-            // Géographie
-            "Paris", "France", "Océan", "Mer", "Rivière", "Lac", "Île",
-            "Désert", "Volcan", "Planète", "Lune", "Soleil", "Étoile",
-            
-            // Vêtements
-            "Chemise", "Pantalon", "Robe", "Jupe", "Pull", "Manteau", "Veste",
-            "Chaussure", "Chaussette", "Chapeau", "Casquette", "Écharpe", "Gant",
-            
-            // Corps humain
-            "Main", "Pied", "Tête", "Bras", "Jambe", "Œil", "Oreille", "Nez",
-            "Bouche", "Dent", "Cheveux", "Cœur", "Estomac",
-            
-            // Nature
-            "Arbre", "Fleur", "Rose", "Herbe", "Feuille", "Nuage", "Pluie",
-            "Neige", "Vent", "Orage", "Arc-en-ciel", "Pierre", "Sable",
-            
-            // Métiers
-            "Médecin", "Professeur", "Pompier", "Policier", "Boulanger",
-            "Cuisinier", "Coiffeur", "Peintre", "Musicien", "Chanteur",
-            
-            // Sport et loisirs
-            "Football", "Tennis", "Basketball", "Natation", "Vélo", "Course",
-            "Danse", "Musique", "Guitare", "Piano", "Peinture", "Dessin",
-            
-            // Temps
-            "Matin", "Midi", "Soir", "Nuit", "Jour", "Semaine", "Mois", "Année",
-            "Printemps", "Été", "Automne", "Hiver", "Dimanche", "Lundi",
-            
-            // Famille
-            "Mère", "Père", "Frère", "Sœur", "Enfant", "Bébé", "Grand-père",
-            "Grand-mère", "Oncle", "Tante", "Cousin", "Famille", "Ami",
-            
-            // Couleurs et formes
-            "Rouge", "Bleu", "Vert", "Jaune", "Noir", "Blanc", "Orange",
-            "Cercle", "Carré", "Triangle", "Rectangle",
-            
-            // Sentiments (noms)
-            "Amour", "Joie", "Tristesse", "Peur", "Colère", "Surprise",
-            "Bonheur", "Rire", "Sourire", "Larme",
-            
-            // Objets de la maison
-            "Four", "Frigo", "Douche", "Baignoire", "Toilette", "Escalier",
-            "Balcon", "Garage", "Cave", "Grenier", "Cuisine", "Salon",
-            "Chambre", "Bureau", "Toilette", "Couloir"
-        ];
+        // Configuration des thèmes
+        const THEMES = {
+            animaux: { file: 'themes/animaux.txt', name: '🐾 Animaux' },
+            nourriture: { file: 'themes/nourriture.txt', name: '🍕 Nourriture' },
+            objets: { file: 'themes/objets.txt', name: '🔧 Objets' },
+            lieux: { file: 'themes/lieux.txt', name: '🏛️ Lieux' },
+            metiers: { file: 'themes/metiers.txt', name: '💼 Métiers' },
+            sports: { file: 'themes/sports.txt', name: '⚽ Sports' },
+            nature: { file: 'themes/nature.txt', name: '🌳 Nature' },
+            vetements: { file: 'themes/vetements.txt', name: '👔 Vêtements' },
+            corps: { file: 'themes/corps.txt', name: '👤 Corps' },
+            general: { file: 'themes/general.txt', name: '🌟 Général' }
+        };
 
-        // Fonction pour charger et filtrer les mots
-        async function chargerMotsDepuisInternet() {
-            if (motsCache.length > 0) {
-                return motsCache;
+        async function chargerTheme() {
+            const theme = document.getElementById('theme').value;
+            
+            if (!theme) {
+                motsCache = [];
+                themeActuel = '';
+                return;
             }
 
-            if (chargementEnCours) {
-                await new Promise(resolve => {
-                    const checkCache = setInterval(() => {
-                        if (!chargementEnCours) {
-                            clearInterval(checkCache);
-                            resolve();
-                        }
-                    }, 100);
-                });
-                return motsCache;
+            if (theme === themeActuel && motsCache.length > 0) {
+                return; // Déjà chargé
             }
 
-            chargementEnCours = true;
-            document.getElementById('loading').classList.add('active');
+            const loadingDiv = document.getElementById('loading');
+            loadingDiv.classList.add('active');
 
             try {
-                // Essayer plusieurs APIs pour récupérer des noms communs
-                let mots = [];
+                const response = await fetch(THEMES[theme].file);
                 
-                // API 1: Datamuse (chercher des noms relatifs à des concepts courants)
-                const concepts = ['animal', 'food', 'object', 'place', 'person', 'thing'];
-                const promises = concepts.map(concept => 
-                    fetch(`https://api.datamuse.com/words?ml=${concept}&max=50`)
-                        .then(res => res.json())
-                        .catch(() => [])
-                );
-                
-                const results = await Promise.all(promises);
-                const motsAPI = results.flat().map(item => item.word);
-                
-                // Filtrer pour garder uniquement des noms simples et connus
-                mots = motsAPI
-                    .filter(mot => {
-                        // Garder seulement les mots simples (pas de tirets, apostrophes, etc.)
-                        return /^[a-zA-Z]+$/.test(mot) && mot.length >= 3 && mot.length <= 12;
-                    })
-                    .map(mot => mot.charAt(0).toUpperCase() + mot.slice(1).toLowerCase())
-                    .slice(0, 100);
-
-                // Combiner avec notre liste de noms communs français
-                motsCache = [...new Set([...NOMS_COMMUNS, ...mots])];
-                
-                // Si pas assez de mots variés, utiliser uniquement notre liste
-                if (motsCache.length < 100) {
-                    motsCache = NOMS_COMMUNS;
+                if (!response.ok) {
+                    throw new Error('Erreur de chargement du fichier');
                 }
 
-            } catch (error) {
-                console.error('Erreur lors du chargement des mots:', error);
-                // Utiliser uniquement notre liste de noms communs
-                motsCache = NOMS_COMMUNS;
-            } finally {
-                chargementEnCours = false;
-                document.getElementById('loading').classList.remove('active');
-            }
+                const texte = await response.text();
+                motsCache = texte
+                    .split('\n')
+                    .map(mot => mot.trim())
+                    .filter(mot => mot.length > 0);
 
-            return motsCache;
+                themeActuel = theme;
+                
+                console.log(`✅ ${motsCache.length} mots chargés pour le thème "${THEMES[theme].name}"`);
+                
+            } catch (error) {
+                afficherErreur(`❌ Erreur lors du chargement du thème. Vérifiez que le fichier existe.`);
+                console.error(error);
+                motsCache = [];
+                themeActuel = '';
+            } finally {
+                loadingDiv.classList.remove('active');
+            }
         }
 
         function seededRandom(seed) {
@@ -422,11 +370,17 @@
         }
 
         async function jouer() {
+            const theme = document.getElementById('theme').value;
             const nbJoueurs = parseInt(document.getElementById('joueurs').value);
             const numeroJoueur = parseInt(document.getElementById('numero').value);
             const graine = parseInt(document.getElementById('graine').value);
 
             // Validation
+            if (!theme) {
+                afficherErreur('⚠️ Veuillez choisir un thème !');
+                return;
+            }
+
             if (!nbJoueurs || !numeroJoueur || !graine) {
                 afficherErreur('⚠️ Veuillez remplir tous les champs !');
                 return;
@@ -448,13 +402,20 @@
             btnJouer.textContent = '⏳ Chargement...';
 
             try {
-                // Charger les mots depuis internet
-                const mots = await chargerMotsDepuisInternet();
+                // Charger le thème si pas déjà fait
+                await chargerTheme();
+
+                if (motsCache.length === 0) {
+                    afficherErreur('❌ Aucun mot disponible pour ce thème !');
+                    btnJouer.disabled = false;
+                    btnJouer.textContent = '▶️ Découvrir mon rôle';
+                    return;
+                }
 
                 // Calcul de l'imposteur et du mot
                 const indexImposteur = Math.floor(seededRandom(graine) * nbJoueurs) + 1;
-                const indexMot = Math.floor(seededRandom(graine + 1000) * mots.length);
-                const motSecret = mots[indexMot];
+                const indexMot = Math.floor(seededRandom(graine + 1000) * motsCache.length);
+                const motSecret = motsCache[indexMot];
                 const estImposteur = numeroJoueur === indexImposteur;
 
                 // Affichage du résultat
@@ -464,10 +425,11 @@
                 
                 resultatDiv.innerHTML = `
                     <div class="info">
+                        <div class="info-item">${THEMES[theme].name}</div>
                         <div class="info-item">🎮 Partie #${graine}</div>
                         <div class="info-item">👥 ${nbJoueurs} joueurs</div>
                         <div class="info-item">🔢 Joueur n°${numeroJoueur}</div>
-                        <div class="info-item">📚 ${motsCache.length} noms disponibles</div>
+                        <div class="info-item">📚 ${motsCache.length} mots disponibles</div>
                     </div>
                     
                     <div class="mot-secret ${estImposteur ? 'imposteur' : 'joueur'}">
@@ -506,9 +468,6 @@
             if (!graineInput.value) {
                 graineInput.value = Math.floor(Math.random() * 99999) + 10000;
             }
-            
-            // Précharger les mots en arrière-plan
-            chargerMotsDepuisInternet();
         };
     </script>
 </body>
