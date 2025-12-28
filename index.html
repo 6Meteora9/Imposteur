@@ -66,6 +66,11 @@
         select {
             cursor: pointer;
         }
+
+        select:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         
         input:focus, select:focus {
             outline: none;
@@ -88,12 +93,12 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
         
-        button:hover {
+        button:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
         }
         
-        button:active {
+        button:active:not(:disabled) {
             transform: translateY(0);
         }
 
@@ -249,18 +254,8 @@
 
             <div class="form-group">
                 <label for="theme">🎨 Choisissez un thème</label>
-                <select id="theme" onchange="chargerTheme()">
-                    <option value="">-- Sélectionner un thème --</option>
-                    <option value="animaux">🐾 Animaux</option>
-                    <option value="nourriture">🍕 Nourriture</option>
-                    <option value="objets">🔧 Objets du quotidien</option>
-                    <option value="lieux">🏛️ Lieux</option>
-                    <option value="metiers">💼 Métiers</option>
-                    <option value="sports">⚽ Sports et loisirs</option>
-                    <option value="nature">🌳 Nature</option>
-                    <option value="vetements">👔 Vêtements</option>
-                    <option value="corps">👤 Corps humain</option>
-                    <option value="general">🌟 Mélange général</option>
+                <select id="theme" onchange="chargerTheme()" disabled>
+                    <option value="">⏳ Chargement des thèmes...</option>
                 </select>
             </div>
 
@@ -297,20 +292,68 @@
         // Cache pour stocker les mots du thème chargé
         let motsCache = [];
         let themeActuel = '';
+        let themesDisponibles = {};
 
-        // Configuration des thèmes
-        const THEMES = {
+        // Configuration des thèmes possibles
+        const THEMES_CONFIG = {
             animaux: { file: 'themes/animaux.txt', name: '🐾 Animaux' },
             nourriture: { file: 'themes/nourriture.txt', name: '🍕 Nourriture' },
-            objets: { file: 'themes/objets.txt', name: '🔧 Objets' },
+            objets: { file: 'themes/objets.txt', name: '🔧 Objets du quotidien' },
             lieux: { file: 'themes/lieux.txt', name: '🏛️ Lieux' },
             metiers: { file: 'themes/metiers.txt', name: '💼 Métiers' },
-            sports: { file: 'themes/sports.txt', name: '⚽ Sports' },
+            sports: { file: 'themes/sports.txt', name: '⚽ Sports et loisirs' },
             nature: { file: 'themes/nature.txt', name: '🌳 Nature' },
             vetements: { file: 'themes/vetements.txt', name: '👔 Vêtements' },
-            corps: { file: 'themes/corps.txt', name: '👤 Corps' },
-            general: { file: 'themes/general.txt', name: '🌟 Général' }
+            corps: { file: 'themes/corps.txt', name: '👤 Corps humain' },
+            general: { file: 'themes/general.txt', name: '🌟 Mélange général' }
         };
+
+        // Détecte les thèmes disponibles au chargement
+        async function detecterThemesDisponibles() {
+            const themeSelect = document.getElementById('theme');
+            themeSelect.innerHTML = '<option value="">⏳ Détection des thèmes...</option>';
+            themeSelect.disabled = true;
+
+            themesDisponibles = {};
+            const promises = [];
+
+            // Test de chaque thème
+            for (const [key, config] of Object.entries(THEMES_CONFIG)) {
+                promises.push(
+                    fetch(config.file, { method: 'HEAD' })
+                        .then(response => {
+                            if (response.ok) {
+                                themesDisponibles[key] = config;
+                                return { key, available: true };
+                            }
+                            return { key, available: false };
+                        })
+                        .catch(() => ({ key, available: false }))
+                );
+            }
+
+            await Promise.all(promises);
+
+            // Mise à jour du select avec les thèmes disponibles
+            themeSelect.innerHTML = '<option value="">-- Sélectionner un thème --</option>';
+            
+            let nbThemes = 0;
+            for (const [key, config] of Object.entries(themesDisponibles)) {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = config.name;
+                themeSelect.appendChild(option);
+                nbThemes++;
+            }
+
+            if (nbThemes === 0) {
+                themeSelect.innerHTML = '<option value="">❌ Aucun thème trouvé</option>';
+                afficherErreur('❌ Aucun fichier de thème trouvé. Vérifiez le dossier "themes/"');
+            } else {
+                console.log(`✅ ${nbThemes} thème(s) disponible(s)`);
+                themeSelect.disabled = false;
+            }
+        }
 
         async function chargerTheme() {
             const theme = document.getElementById('theme').value;
@@ -329,7 +372,7 @@
             loadingDiv.classList.add('active');
 
             try {
-                const response = await fetch(THEMES[theme].file);
+                const response = await fetch(themesDisponibles[theme].file);
                 
                 if (!response.ok) {
                     throw new Error('Erreur de chargement du fichier');
@@ -343,7 +386,7 @@
 
                 themeActuel = theme;
                 
-                console.log(`✅ ${motsCache.length} mots chargés pour le thème "${THEMES[theme].name}"`);
+                console.log(`✅ ${motsCache.length} mots chargés pour le thème "${themesDisponibles[theme].name}"`);
                 
             } catch (error) {
                 afficherErreur(`❌ Erreur lors du chargement du thème. Vérifiez que le fichier existe.`);
@@ -425,7 +468,7 @@
                 
                 resultatDiv.innerHTML = `
                     <div class="info">
-                        <div class="info-item">${THEMES[theme].name}</div>
+                        <div class="info-item">${themesDisponibles[theme].name}</div>
                         <div class="info-item">🎮 Partie #${graine}</div>
                         <div class="info-item">👥 ${nbJoueurs} joueurs</div>
                         <div class="info-item">🔢 Joueur n°${numeroJoueur}</div>
@@ -462,12 +505,16 @@
             document.getElementById('resultat').classList.remove('active');
         }
 
-        // Générer une graine aléatoire au chargement si vide
-        window.onload = function() {
+        // Initialisation au chargement de la page
+        window.onload = async function() {
+            // Générer une graine aléatoire si vide
             const graineInput = document.getElementById('graine');
             if (!graineInput.value) {
                 graineInput.value = Math.floor(Math.random() * 99999) + 10000;
             }
+            
+            // Détecter les thèmes disponibles
+            await detecterThemesDisponibles();
         };
     </script>
 </body>
