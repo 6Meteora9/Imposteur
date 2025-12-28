@@ -92,6 +92,12 @@
         button:active {
             transform: translateY(0);
         }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
         
         .result {
             display: none;
@@ -177,6 +183,34 @@
         .error.active {
             display: block;
         }
+
+        .loading {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
         
         @media (max-width: 480px) {
             .container {
@@ -204,7 +238,7 @@
     <div class="container">
         <div id="formulaire">
             <h1>🎭 Jeu de l'Imposteur</h1>
-            
+
             <div class="form-group">
                 <label for="joueurs">👥 Nombre de joueurs (min 3)</label>
                 <input type="number" id="joueurs" min="3" max="20" value="6" required>
@@ -221,8 +255,12 @@
             </div>
             
             <div class="error" id="error"></div>
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                Chargement des mots depuis internet...
+            </div>
             
-            <button onclick="jouer()">▶️ Découvrir mon rôle</button>
+            <button onclick="jouer()" id="btnJouer">▶️ Découvrir mon rôle</button>
         </div>
         
         <div id="resultat" class="result">
@@ -231,15 +269,76 @@
     </div>
 
     <script>
-        const MOTS = [
-            "Chat", "Chien", "Pomme", "Banane", "Voiture", "Avion", 
-            "Maison", "Arbre", "Soleil", "Lune", "Montagne", "Océan", 
-            "Livre", "Téléphone", "Ordinateur", "Pizza", "Café", 
-            "Restaurant", "Cinéma", "Musique", "Football", "Plage", 
-            "Hiver", "Été", "Guitare", "Piano", "Peinture", "Photo", 
-            "Voyage", "Train", "Fleur", "Chocolat", "Fromage", "Pain",
-            "École", "Bureau", "Jardin", "Forêt", "Rivière", "Pont"
+        // Cache pour stocker les mots récupérés
+        let motsCache = [];
+        let chargementEnCours = false;
+
+        // Liste de fallback au cas où l'API ne fonctionne pas
+        const MOTS_FALLBACK = [
+            "Chien", "Chat", "Éléphant", "Lion", "Pizza", "Football", "Paris",
+            "Médecin", "Guitare", "Montagne", "Océan", "Soleil", "Voiture",
+            "Avion", "Restaurant", "Cinéma", "Livre", "Téléphone", "École",
+            "Plage", "Hiver", "Été", "Musique", "Danse", "Fleur", "Chocolat"
         ];
+
+        // Fonction pour charger les mots depuis internet
+        async function chargerMotsDepuisInternet() {
+            if (motsCache.length > 0) {
+                return motsCache; // Utiliser le cache si déjà chargé
+            }
+
+            if (chargementEnCours) {
+                // Attendre que le chargement en cours se termine
+                await new Promise(resolve => {
+                    const checkCache = setInterval(() => {
+                        if (!chargementEnCours) {
+                            clearInterval(checkCache);
+                            resolve();
+                        }
+                    }, 100);
+                });
+                return motsCache;
+            }
+
+            chargementEnCours = true;
+            document.getElementById('loading').classList.add('active');
+
+            try {
+                // Utilisation de l'API Random Word (anglais, puis traduction approximative)
+                // Ou utilisation de l'API Datamuse pour des mots en français
+                
+                // Option 1: Récupérer des mots aléatoires depuis une API gratuite
+                const response = await fetch('https://random-word-api.herokuapp.com/word?number=200&lang=fr');
+                
+                if (!response.ok) {
+                    throw new Error('Erreur API');
+                }
+                
+                const mots = await response.json();
+                
+                // Filtrer et formater les mots
+                motsCache = mots
+                    .filter(mot => mot.length >= 3 && mot.length <= 15)
+                    .map(mot => mot.charAt(0).toUpperCase() + mot.slice(1).toLowerCase())
+                    .slice(0, 100);
+
+                // Si pas assez de mots, compléter avec le fallback
+                if (motsCache.length < 50) {
+                    motsCache = [...new Set([...motsCache, ...MOTS_FALLBACK])];
+                }
+
+            } catch (error) {
+                console.error('Erreur lors du chargement des mots:', error);
+                // Utiliser les mots de fallback en cas d'erreur
+                motsCache = MOTS_FALLBACK;
+                afficherErreur('⚠️ Impossible de charger depuis internet, utilisation des mots de secours');
+            } finally {
+                chargementEnCours = false;
+                document.getElementById('loading').classList.remove('active');
+            }
+
+            return motsCache;
+        }
 
         function seededRandom(seed) {
             const x = Math.sin(seed++) * 10000;
@@ -255,7 +354,7 @@
             }, 3000);
         }
 
-        function jouer() {
+        async function jouer() {
             const nbJoueurs = parseInt(document.getElementById('joueurs').value);
             const numeroJoueur = parseInt(document.getElementById('numero').value);
             const graine = parseInt(document.getElementById('graine').value);
@@ -276,40 +375,57 @@
                 return;
             }
 
-            // Calcul de l'imposteur et du mot
-            const indexImposteur = Math.floor(seededRandom(graine) * nbJoueurs) + 1;
-            const indexMot = Math.floor(seededRandom(graine + 1000) * MOTS.length);
-            const motSecret = MOTS[indexMot];
-            const estImposteur = numeroJoueur === indexImposteur;
+            // Désactiver le bouton pendant le chargement
+            const btnJouer = document.getElementById('btnJouer');
+            btnJouer.disabled = true;
+            btnJouer.textContent = '⏳ Chargement...';
 
-            // Affichage du résultat
-            document.getElementById('formulaire').style.display = 'none';
-            const resultatDiv = document.getElementById('resultat');
-            resultatDiv.classList.add('active');
-            
-            resultatDiv.innerHTML = `
-                <div class="info">
-                    <div class="info-item">🎮 Partie #${graine}</div>
-                    <div class="info-item">👥 ${nbJoueurs} joueurs</div>
-                    <div class="info-item">🎯 Vous êtes le joueur ${numeroJoueur}</div>
-                </div>
+            try {
+                // Charger les mots depuis internet
+                const mots = await chargerMotsDepuisInternet();
+
+                // Calcul de l'imposteur et du mot
+                const indexImposteur = Math.floor(seededRandom(graine) * nbJoueurs) + 1;
+                const indexMot = Math.floor(seededRandom(graine + 1000) * mots.length);
+                const motSecret = mots[indexMot];
+                const estImposteur = numeroJoueur === indexImposteur;
+
+                // Affichage du résultat
+                document.getElementById('formulaire').style.display = 'none';
+                const resultatDiv = document.getElementById('resultat');
+                resultatDiv.classList.add('active');
                 
-                <div class="mot-secret ${estImposteur ? 'imposteur' : 'joueur'}">
-                    ${estImposteur ? '❌ IMPOSTEUR' : motSecret}
-                </div>
-                
-                <div class="instructions">
-                    ${estImposteur 
-                        ? '<strong>🕵️ Votre mission :</strong><br>Devinez le mot secret sans vous faire démasquer ! Écoutez bien les autres joueurs.'
-                        : '<strong>🔍 Votre mission :</strong><br>Trouvez qui est l\'imposteur en discutant du mot secret ! Soyez subtil dans vos questions.'
-                    }
-                    <p style="margin-top: 15px; opacity: 0.8; font-size: 13px;">
-                        ⚠️ Gardez votre écran secret !
-                    </p>
-                </div>
-                
-                <button class="btn-retour" onclick="retour()">↩️ Retour</button>
-            `;
+                resultatDiv.innerHTML = `
+                    <div class="info">
+                        <div class="info-item">🎮 Partie #${graine}</div>
+                        <div class="info-item">👥 ${nbJoueurs} joueurs</div>
+                        <div class="info-item">🔢 Joueur n°${numeroJoueur}</div>
+                        <div class="info-item">🌐 ${motsCache.length} mots disponibles</div>
+                    </div>
+                    
+                    <div class="mot-secret ${estImposteur ? 'imposteur' : 'joueur'}">
+                        ${estImposteur ? '❌ IMPOSTEUR' : motSecret}
+                    </div>
+                    
+                    <div class="instructions">
+                        ${estImposteur 
+                            ? '<strong>🕵️ Votre mission :</strong><br>Devinez le mot secret sans vous faire démasquer ! Écoutez bien les autres joueurs et posez des questions subtiles.'
+                            : '<strong>🔍 Votre mission :</strong><br>Trouvez qui est l\'imposteur en discutant du mot secret ! Posez des questions pour débusquer l\'intrus.'
+                        }
+                        <p style="margin-top: 15px; opacity: 0.8; font-size: 13px;">
+                            ⚠️ Gardez votre écran secret ! Passez le téléphone au joueur suivant.
+                        </p>
+                    </div>
+                    
+                    <button class="btn-retour" onclick="retour()">↩️ Nouvelle partie</button>
+                `;
+            } catch (error) {
+                afficherErreur('❌ Erreur lors du chargement du jeu');
+                console.error(error);
+            } finally {
+                btnJouer.disabled = false;
+                btnJouer.textContent = '▶️ Découvrir mon rôle';
+            }
         }
 
         function retour() {
@@ -323,6 +439,9 @@
             if (!graineInput.value) {
                 graineInput.value = Math.floor(Math.random() * 99999) + 10000;
             }
+            
+            // Précharger les mots en arrière-plan
+            chargerMotsDepuisInternet();
         };
     </script>
 </body>
