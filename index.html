@@ -273,22 +273,82 @@
         let motsCache = [];
         let chargementEnCours = false;
 
-        // Liste de fallback au cas où l'API ne fonctionne pas
-        const MOTS_FALLBACK = [
-            "Chien", "Chat", "Éléphant", "Lion", "Pizza", "Football", "Paris",
-            "Médecin", "Guitare", "Montagne", "Océan", "Soleil", "Voiture",
-            "Avion", "Restaurant", "Cinéma", "Livre", "Téléphone", "École",
-            "Plage", "Hiver", "Été", "Musique", "Danse", "Fleur", "Chocolat"
+        // Liste robuste de noms communs connus par tous
+        const NOMS_COMMUNS = [
+            // Animaux
+            "Chien", "Chat", "Éléphant", "Lion", "Tigre", "Ours", "Lapin", "Cheval", 
+            "Vache", "Poule", "Cochon", "Mouton", "Poisson", "Oiseau", "Serpent",
+            "Singe", "Girafe", "Zèbre", "Requin", "Dauphin", "Baleine", "Tortue",
+            
+            // Nourriture
+            "Pizza", "Pain", "Fromage", "Chocolat", "Gâteau", "Pomme", "Banane",
+            "Orange", "Fraise", "Tomate", "Carotte", "Salade", "Riz", "Pâtes",
+            "Soupe", "Sandwich", "Burger", "Frites", "Glace", "Bonbon",
+            
+            // Objets quotidiens
+            "Téléphone", "Ordinateur", "Télévision", "Voiture", "Vélo", "Moto",
+            "Avion", "Bateau", "Train", "Bus", "Livre", "Stylo", "Crayon",
+            "Table", "Chaise", "Lit", "Canapé", "Porte", "Fenêtre", "Miroir",
+            "Lampe", "Horloge", "Clé", "Sac", "Valise", "Parapluie",
+            
+            // Lieux
+            "Maison", "École", "Hôpital", "Restaurant", "Cinéma", "Musée",
+            "Plage", "Montagne", "Forêt", "Jardin", "Parc", "Ville", "Village",
+            "Magasin", "Supermarché", "Boulangerie", "Pharmacie", "Banque",
+            
+            // Géographie
+            "Paris", "France", "Océan", "Mer", "Rivière", "Lac", "Île",
+            "Désert", "Volcan", "Planète", "Lune", "Soleil", "Étoile",
+            
+            // Vêtements
+            "Chemise", "Pantalon", "Robe", "Jupe", "Pull", "Manteau", "Veste",
+            "Chaussure", "Chaussette", "Chapeau", "Casquette", "Écharpe", "Gant",
+            
+            // Corps humain
+            "Main", "Pied", "Tête", "Bras", "Jambe", "Œil", "Oreille", "Nez",
+            "Bouche", "Dent", "Cheveux", "Cœur", "Estomac",
+            
+            // Nature
+            "Arbre", "Fleur", "Rose", "Herbe", "Feuille", "Nuage", "Pluie",
+            "Neige", "Vent", "Orage", "Arc-en-ciel", "Pierre", "Sable",
+            
+            // Métiers
+            "Médecin", "Professeur", "Pompier", "Policier", "Boulanger",
+            "Cuisinier", "Coiffeur", "Peintre", "Musicien", "Chanteur",
+            
+            // Sport et loisirs
+            "Football", "Tennis", "Basketball", "Natation", "Vélo", "Course",
+            "Danse", "Musique", "Guitare", "Piano", "Peinture", "Dessin",
+            
+            // Temps
+            "Matin", "Midi", "Soir", "Nuit", "Jour", "Semaine", "Mois", "Année",
+            "Printemps", "Été", "Automne", "Hiver", "Dimanche", "Lundi",
+            
+            // Famille
+            "Mère", "Père", "Frère", "Sœur", "Enfant", "Bébé", "Grand-père",
+            "Grand-mère", "Oncle", "Tante", "Cousin", "Famille", "Ami",
+            
+            // Couleurs et formes
+            "Rouge", "Bleu", "Vert", "Jaune", "Noir", "Blanc", "Orange",
+            "Cercle", "Carré", "Triangle", "Rectangle",
+            
+            // Sentiments (noms)
+            "Amour", "Joie", "Tristesse", "Peur", "Colère", "Surprise",
+            "Bonheur", "Rire", "Sourire", "Larme",
+            
+            // Objets de la maison
+            "Four", "Frigo", "Douche", "Baignoire", "Toilette", "Escalier",
+            "Balcon", "Garage", "Cave", "Grenier", "Cuisine", "Salon",
+            "Chambre", "Bureau", "Toilette", "Couloir"
         ];
 
-        // Fonction pour charger les mots depuis internet
+        // Fonction pour charger et filtrer les mots
         async function chargerMotsDepuisInternet() {
             if (motsCache.length > 0) {
-                return motsCache; // Utiliser le cache si déjà chargé
+                return motsCache;
             }
 
             if (chargementEnCours) {
-                // Attendre que le chargement en cours se termine
                 await new Promise(resolve => {
                     const checkCache = setInterval(() => {
                         if (!chargementEnCours) {
@@ -304,34 +364,41 @@
             document.getElementById('loading').classList.add('active');
 
             try {
-                // Utilisation de l'API Random Word (anglais, puis traduction approximative)
-                // Ou utilisation de l'API Datamuse pour des mots en français
+                // Essayer plusieurs APIs pour récupérer des noms communs
+                let mots = [];
                 
-                // Option 1: Récupérer des mots aléatoires depuis une API gratuite
-                const response = await fetch('https://random-word-api.herokuapp.com/word?number=200&lang=fr');
+                // API 1: Datamuse (chercher des noms relatifs à des concepts courants)
+                const concepts = ['animal', 'food', 'object', 'place', 'person', 'thing'];
+                const promises = concepts.map(concept => 
+                    fetch(`https://api.datamuse.com/words?ml=${concept}&max=50`)
+                        .then(res => res.json())
+                        .catch(() => [])
+                );
                 
-                if (!response.ok) {
-                    throw new Error('Erreur API');
-                }
+                const results = await Promise.all(promises);
+                const motsAPI = results.flat().map(item => item.word);
                 
-                const mots = await response.json();
-                
-                // Filtrer et formater les mots
-                motsCache = mots
-                    .filter(mot => mot.length >= 3 && mot.length <= 15)
+                // Filtrer pour garder uniquement des noms simples et connus
+                mots = motsAPI
+                    .filter(mot => {
+                        // Garder seulement les mots simples (pas de tirets, apostrophes, etc.)
+                        return /^[a-zA-Z]+$/.test(mot) && mot.length >= 3 && mot.length <= 12;
+                    })
                     .map(mot => mot.charAt(0).toUpperCase() + mot.slice(1).toLowerCase())
                     .slice(0, 100);
 
-                // Si pas assez de mots, compléter avec le fallback
-                if (motsCache.length < 50) {
-                    motsCache = [...new Set([...motsCache, ...MOTS_FALLBACK])];
+                // Combiner avec notre liste de noms communs français
+                motsCache = [...new Set([...NOMS_COMMUNS, ...mots])];
+                
+                // Si pas assez de mots variés, utiliser uniquement notre liste
+                if (motsCache.length < 100) {
+                    motsCache = NOMS_COMMUNS;
                 }
 
             } catch (error) {
                 console.error('Erreur lors du chargement des mots:', error);
-                // Utiliser les mots de fallback en cas d'erreur
-                motsCache = MOTS_FALLBACK;
-                afficherErreur('⚠️ Impossible de charger depuis internet, utilisation des mots de secours');
+                // Utiliser uniquement notre liste de noms communs
+                motsCache = NOMS_COMMUNS;
             } finally {
                 chargementEnCours = false;
                 document.getElementById('loading').classList.remove('active');
@@ -400,7 +467,7 @@
                         <div class="info-item">🎮 Partie #${graine}</div>
                         <div class="info-item">👥 ${nbJoueurs} joueurs</div>
                         <div class="info-item">🔢 Joueur n°${numeroJoueur}</div>
-                        <div class="info-item">🌐 ${motsCache.length} mots disponibles</div>
+                        <div class="info-item">📚 ${motsCache.length} noms disponibles</div>
                     </div>
                     
                     <div class="mot-secret ${estImposteur ? 'imposteur' : 'joueur'}">
